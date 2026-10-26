@@ -124,6 +124,8 @@ export interface GenerateOptions {
     generate?: string;
     /** also generate values for optional fields. */
     includeOptionalFields?: boolean;
+    /** skip checking DateTime default values; the Serializer checks the ones it uses. */
+    deferDateTimeDefaultCheck?: boolean;
 }
 
 /**

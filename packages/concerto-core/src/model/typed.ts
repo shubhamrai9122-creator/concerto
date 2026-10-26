@@ -134,10 +134,33 @@ class Typed {
     }
 
     /**
-     * Sets the fields to their default values, based on the model
+     * Throws if a property is a DateTime field whose default value cannot be parsed.
+     * @param {Field} property - the property to check
+     * @throws {ValidationException} if the default value is not a valid DateTime
      * @private
      */
-    assignFieldDefaults(): void {
+    static checkDateTimeDefault(property: Field): void {
+        let field = property;
+        if (field.isTypeScalar?.()) {
+            field = field.getScalarField();
+        }
+        if (!field.isField?.() || field.getType() !== 'DateTime') {
+            return;
+        }
+        const defaultValue = field.getDefaultValue();
+        if (!Util.isNull(defaultValue) && !dayjs.utc(defaultValue as string).isValid()) {
+            throw new ValidationException(`Invalid default value '${defaultValue}' for DateTime field '${field.getName()}'.`);
+        }
+    }
+
+    /**
+     * Sets the fields to their default values, based on the model
+     * @param {boolean} [checkDateTimeDefaults] - throw if a DateTime default cannot
+     * be parsed. Defaults to true. The Serializer passes false and checks only the
+     * defaults that are used for fields missing from the JSON.
+     * @private
+     */
+    assignFieldDefaults(checkDateTimeDefaults = true): void {
         let classDeclaration = this.getClassDeclaration();
         let fields = classDeclaration.getProperties();
 
@@ -167,10 +190,10 @@ class Typed {
                 } else if (type === 'Boolean') {
                     this.setPropertyValue(field.getName(), (defaultValue === true));
                 } else if (type === 'DateTime') {
-                    const dateTime = dayjs.utc(defaultValue);
-                    if (!dateTime.isValid()) {
-                        throw new ValidationException(`Invalid default value '${defaultValue}' for DateTime field '${field.getName()}'.`);
+                    if (checkDateTimeDefaults) {
+                        Typed.checkDateTimeDefault(field);
                     }
+                    const dateTime = dayjs.utc(defaultValue);
                     this.setPropertyValue(field.getName(), dateTime);
                 } else {
                     // following precident set in jsonpopulator.js - if we get this far the field should be an enum

@@ -724,6 +724,52 @@ describe('Serializer', () => {
                 }).should.throw(ValidationException, /is not a valid date-time/);
             });
         });
+
+        describe('invalid DateTime default', () => {
+            beforeEach(() => {
+                modelManager.addCTOModel(`namespace org.acme.defaults@1.0.0
+                concept G {
+                    o DateTime d default="FOO"
+                }
+                concept H {
+                    o G g
+                }`);
+            });
+
+            it('should throw a ValidationException when the field is missing', () => {
+                (() => {
+                    serializer.fromJSON({ $class: 'org.acme.defaults@1.0.0.G' });
+                }).should.throw(ValidationException, /Invalid default value 'FOO' for DateTime field 'd'\./);
+            });
+
+            it('should throw a ValidationException when the field is null', () => {
+                (() => {
+                    serializer.fromJSON({ $class: 'org.acme.defaults@1.0.0.G', d: null });
+                }).should.throw(ValidationException, /Invalid default value 'FOO' for DateTime field 'd'\./);
+            });
+
+            it('should throw a ValidationException when a nested concept is missing the field', () => {
+                (() => {
+                    serializer.fromJSON({ $class: 'org.acme.defaults@1.0.0.H', g: { $class: 'org.acme.defaults@1.0.0.G' } });
+                }).should.throw(ValidationException, /Invalid default value 'FOO' for DateTime field 'd'\./);
+            });
+
+            it('should use the value from the JSON when the field is present', () => {
+                const resource = serializer.fromJSON({ $class: 'org.acme.defaults@1.0.0.G', d: '2024-05-01T00:00:00.000Z' });
+                serializer.toJSON(resource).should.deep.equal({
+                    $class: 'org.acme.defaults@1.0.0.G',
+                    d: '2024-05-01T00:00:00.000Z',
+                });
+            });
+
+            it('should use the value from the JSON when a nested concept has the field', () => {
+                const json = {
+                    $class: 'org.acme.defaults@1.0.0.H',
+                    g: { $class: 'org.acme.defaults@1.0.0.G', d: '2024-05-01T00:00:00.000Z' },
+                };
+                serializer.toJSON(serializer.fromJSON(json)).should.deep.equal(json);
+            });
+        });
     });
 
 });

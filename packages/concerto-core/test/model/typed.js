@@ -16,6 +16,7 @@
 
 const { ModelManager } = require('../../src/modelmanager');
 const { Typed } = require('../../src/model/typed');
+const { ValidationException } = require('../../src/serializer/validationexception');
 const Util = require('../composer/composermodelutility');
 const dayjs = require('dayjs');
 
@@ -138,8 +139,31 @@ describe('Typed', () => {
             const classDecl = modelManager.getType('org.acme.defaults@1.0.0.DefaultAsset');
             const typed = new Typed(modelManager, classDecl, 'org.acme.defaults@1.0.0', 'DefaultAsset');
             (() => typed.assignFieldDefaults()).should.throw(
+                ValidationException,
                 /Invalid default value 'FOO' for DateTime field 'invalidDate'\./
             );
+        });
+
+        it('should not throw for an invalid DateTime default when the check is skipped', () => {
+            modelManager.addCTOModel(`namespace org.acme.defaults@1.0.0
+            concept DefaultAsset {
+                o DateTime invalidDate default="FOO"
+            }`);
+            const classDecl = modelManager.getType('org.acme.defaults@1.0.0.DefaultAsset');
+            const typed = new Typed(modelManager, classDecl, 'org.acme.defaults@1.0.0', 'DefaultAsset');
+            typed.assignFieldDefaults(false);
+            typed.invalidDate.isValid().should.equal(false);
+        });
+
+        it('should assign a valid DateTime default', () => {
+            modelManager.addCTOModel(`namespace org.acme.defaults@1.0.0
+            concept DefaultAsset {
+                o DateTime validDate default="2024-05-01T00:00:00.000Z"
+            }`);
+            const classDecl = modelManager.getType('org.acme.defaults@1.0.0.DefaultAsset');
+            const typed = new Typed(modelManager, classDecl, 'org.acme.defaults@1.0.0', 'DefaultAsset');
+            typed.assignFieldDefaults();
+            typed.validDate.toISOString().should.equal('2024-05-01T00:00:00.000Z');
         });
 
     });

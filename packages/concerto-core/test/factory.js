@@ -17,6 +17,7 @@
 const { Factory } = require('../src/factory');
 const { ModelManager } = require('../src/modelmanager');
 const { TypeNotFoundException } = require('../src/typenotfoundexception');
+const { ValidationException } = require('../src/serializer/validationexception');
 const uuid = require('uuid');
 const Util = require('./composer/composermodelutility');
 const dayjs = require('dayjs');
@@ -230,6 +231,30 @@ describe('Factory', function() {
             let resource = factory.newConcept(namespace, 'MyConcept', null, { generate: true });
             resource.newValue.should.be.a('string');
             should.not.equal(resource.validate, undefined);
+        });
+
+        describe('with an invalid DateTime default', () => {
+            let defaultsFactory;
+
+            beforeEach(() => {
+                const defaultsModelManager = new ModelManager();
+                defaultsModelManager.addCTOModel(`namespace org.acme.defaults@1.0.0
+                concept G {
+                    o DateTime d default="FOO"
+                }`);
+                defaultsFactory = new Factory(defaultsModelManager);
+            });
+
+            it('should throw a ValidationException', () => {
+                (() => {
+                    defaultsFactory.newConcept('org.acme.defaults@1.0.0', 'G');
+                }).should.throw(ValidationException, /Invalid default value 'FOO' for DateTime field 'd'\./);
+            });
+
+            it('should not throw when deferDateTimeDefaultCheck is set', () => {
+                const resource = defaultsFactory.newConcept('org.acme.defaults@1.0.0', 'G', undefined, { deferDateTimeDefaultCheck: true });
+                resource.d.isValid().should.equal(false);
+            });
         });
 
     });

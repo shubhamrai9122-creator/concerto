@@ -15,6 +15,7 @@
 import createDebug from 'debug';
 import { TypedStack, NullUtil as Util } from '@accordproject/concerto-util';
 import Relationship from '../model/relationship';
+import Typed from '../model/typed';
 import ModelUtil from '../modelutil';
 import ValidationException from './validationexception';
 import dayjs from '../dayjs-setup';
@@ -29,6 +30,10 @@ import type Resource from '../model/resource';
 import Field from '../introspect/field';
 
 const debug = createDebug('concerto:JSONPopulator');
+
+// Nested instances are created like the root one in Serializer.fromJSON: their
+// DateTime defaults are checked in visitClassDeclaration, not by the factory.
+const FACTORY_OPTIONS = { deferDateTimeDefaultCheck: true };
 
 
 type Stack<T> = {
@@ -187,6 +192,14 @@ class JSONPopulator {
                 parameters.path?.pop();
             }
         });
+
+        // A field that is missing from the JSON (or null) keeps the default the
+        // factory assigned, so this is where a DateTime default is actually used.
+        classDeclaration.getProperties().forEach((property) => {
+            if (Util.isNull(jsonObj[property.getName()])) {
+                Typed.checkDateTimeDefault(property as Field);
+            }
+        });
         return resourceObj;
     }
 
@@ -267,7 +280,7 @@ class JSONPopulator {
         // if its a ClassDeclaration, populate the Concept.
         if (decl?.isClassDeclaration()) {
             let subResource = parameters.factory.newConcept(decl.getNamespace(),
-                decl.getName(), decl.getIdentifierFieldName() );
+                decl.getName(), decl.getIdentifierFieldName(), FACTORY_OPTIONS);
 
             parameters.jsonStack.push(value);
             parameters.resourceStack.push(subResource);
@@ -339,11 +352,11 @@ class JSONPopulator {
                 // if this is identifiable, then we create a resource
                 if (declaration.isIdentified()) {
                     subResource = parameters.factory.newResource(declaration.getNamespace(),
-                        declaration.getName(), jsonItem[declaration.getIdentifierFieldName()] );
+                        declaration.getName(), jsonItem[declaration.getIdentifierFieldName()], FACTORY_OPTIONS);
                 } else {
                     // otherwise we create a concept
                     subResource = parameters.factory.newConcept(declaration.getNamespace(),
-                        declaration.getName());
+                        declaration.getName(), undefined, FACTORY_OPTIONS);
                 }
                 parameters.resourceStack.push(subResource);
             }
@@ -473,7 +486,7 @@ class JSONPopulator {
 
             // create a new instance, using the identifier field name as the ID.
             let subResource = parameters.factory.newResource(classDeclaration.getNamespace(),
-                classDeclaration.getName(), jsonObjAsObject[classDeclaration.getIdentifierFieldName()] );
+                classDeclaration.getName(), jsonObjAsObject[classDeclaration.getIdentifierFieldName()], FACTORY_OPTIONS);
             parameters.jsonStack.push(jsonObjAsObject);
             parameters.resourceStack.push(subResource);
             classDeclaration.accept(this, parameters);
