@@ -45,6 +45,38 @@ describe('ModelUtil', function () {
         });
     });
 
+    describe('#isValidIdentifier', function() {
+
+        it('should return false for undefined', function() {
+            ModelUtil.isValidIdentifier(undefined).should.equal(false);
+        });
+
+        it('should return false for null', function() {
+            ModelUtil.isValidIdentifier(null).should.equal(false);
+        });
+
+        it('should preserve valid identifier strings "undefined" and "null"', function() {
+            ModelUtil.isValidIdentifier('undefined').should.equal(true);
+            ModelUtil.isValidIdentifier('null').should.equal(true);
+        });
+
+    });
+
+    describe('#isScalar', function() {
+        it('should return true for scalar field and falsy for primitive field', function() {
+            const mm = new ModelManager();
+            mm.addCTOModel(`namespace org.test@1.0.0
+            scalar MyString extends String
+            concept Foo {
+                o MyString scalarField
+                o String primitiveField
+            }`, 'test.cto');
+            const decl = mm.getType('org.test@1.0.0.Foo');
+            Boolean(ModelUtil.isScalar(decl.getProperty('scalarField'))).should.be.true;
+            Boolean(ModelUtil.isScalar(decl.getProperty('primitiveField'))).should.be.false;
+        });
+    });
+
     describe('#getShortName', function() {
 
         it('should handle a name with a namespace', function() {

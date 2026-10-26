@@ -88,9 +88,6 @@ class Property extends Decorated {
 
         this.name = this.ast.name;
 
-        if(!this.name) {
-            throw new Error('No name for type ' + JSON.stringify(this.ast));
-        }
 
         switch (this.ast.$class) {
         case `${MetaModelNamespace}.EnumProperty`:
@@ -117,6 +114,13 @@ class Property extends Decorated {
             this.type = this.ast.type ? this.ast.type.name : null;
             break;
         case `${MetaModelNamespace}.RelationshipProperty`:
+            if (!this.ast.type || !this.ast.type.name) {
+                throw new IllegalModelException(
+                    `RelationshipProperty must contain property 'type', for property ${this.ast.name}`,
+                    this.getModelFile(),
+                    this.ast.location
+                );
+            }
             this.type = this.ast.type.name;
             break;
         }

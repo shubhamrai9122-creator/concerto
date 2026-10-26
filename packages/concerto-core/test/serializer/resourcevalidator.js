@@ -18,6 +18,7 @@ const TypedStack = require('@accordproject/concerto-util').TypedStack;
 const { ModelManager } = require('../../src/modelmanager');
 const { Factory } = require('../../src/factory');
 const { TypeNotFoundException } = require('../../src/typenotfoundexception');
+const { ValidationException } = require('../../src/serializer/validationexception');
 const { ResourceValidator } = require('../../src/serializer/resourcevalidator');
 const { Serializer } = require('../../src/serializer');
 const { Identifiable } = require('../../src/model/identifiable');
@@ -601,6 +602,14 @@ describe('ResourceValidator', function () {
                 resourceValidator.checkRelationship(parameters, {}, mockResource);
             }).should.not.throw();
         });
+
+        it('should throw if target type is not identifiable', () => {
+            resourceValidator.options.convertResourcesToRelationships = true;
+            mockClassDeclaration.getIdentifierFieldName.returns(null);
+            (() => {
+                resourceValidator.checkRelationship(parameters, {}, mockResource);
+            }).should.throw('Cannot have a relationship to a field that is not identifiable.');
+        });
     });
 
     describe('#collectionSizeValidator', () => {
@@ -699,6 +708,52 @@ describe('ResourceValidator', function () {
             team.contacts = new Map([['a','1'],['b','2'],['c','3'],['d','4']]);
             const serializer = new Serializer(factory, modelManager);
             (() => serializer.toJSON(team)).should.throw(/no more than 3 elements/);
+        });
+    });
+
+    describe('invalid input scenario handling', () => {
+        const testCto = `namespace org.acme@1.0.0
+        participant P identified by id { o String id }
+        concept Addr { o String s }
+        concept R {
+            --> P[] ps
+            o Addr[] as
+        }
+        enum Color { o RED }`;
+
+        beforeEach(() => {
+            modelManager.addCTOModel(testCto, 'test.cto');
+        });
+
+        it('should throw Error when $class in fromJSON is not a string', () => {
+            const serializer = new Serializer(factory, modelManager);
+            (() => serializer.fromJSON({ $class: 42 })).should.throw(Error, /Invalid JSON data/);
+        });
+
+        it('should throw ValidationException when relationship array holds null', () => {
+            const r = factory.newConcept('org.acme@1.0.0', 'R');
+            r.ps = [null];
+            r.as = [];
+            (() => r.validate()).should.throw(ValidationException);
+        });
+
+        it('should throw ValidationException when concept array holds null', () => {
+            const r = factory.newConcept('org.acme@1.0.0', 'R');
+            r.ps = [];
+            r.as = [null];
+            (() => r.validate()).should.throw(ValidationException);
+        });
+
+        it('should throw ValidationException when relationship array field is a string', () => {
+            const r = factory.newConcept('org.acme@1.0.0', 'R');
+            r.ps = 'abc';
+            r.as = [];
+            (() => r.validate()).should.throw(ValidationException);
+        });
+
+        it('should throw Error when newResource of an enum type is called with generate option', () => {
+            (() => factory.newResource('org.acme@1.0.0', 'Color', undefined, { generate: 'sample' }))
+                .should.throw(Error, /Unrecognised/);
         });
     });
 });
