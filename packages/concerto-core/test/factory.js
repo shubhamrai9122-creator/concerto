@@ -18,6 +18,7 @@ const { Factory } = require('../src/factory');
 const { ModelManager } = require('../src/modelmanager');
 const { TypeNotFoundException } = require('../src/typenotfoundexception');
 const { ValidationException } = require('../src/serializer/validationexception');
+const { DEFER_DATETIME_DEFAULT_CHECK } = require('../src/model/typed');
 const uuid = require('uuid');
 const Util = require('./composer/composermodelutility');
 const dayjs = require('dayjs');
@@ -251,8 +252,8 @@ describe('Factory', function() {
                 }).should.throw(ValidationException, /Invalid default value 'FOO' for DateTime field 'd'\./);
             });
 
-            it('should not throw when deferDateTimeDefaultCheck is set', () => {
-                const resource = defaultsFactory.newConcept('org.acme.defaults@1.0.0', 'G', undefined, { deferDateTimeDefaultCheck: true });
+            it('should not throw when the internal deferral option is set', () => {
+                const resource = defaultsFactory.newConcept('org.acme.defaults@1.0.0', 'G', undefined, { [DEFER_DATETIME_DEFAULT_CHECK]: true });
                 resource.d.isValid().should.equal(false);
             });
         });

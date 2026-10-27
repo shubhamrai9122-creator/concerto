@@ -27,6 +27,7 @@ import ResourceValidator from './serializer/resourcevalidator';
 import Relationship from './model/relationship';
 import Resource from './model/resource';
 import ValidatedResource from './model/validatedresource';
+import { DEFER_DATETIME_DEFAULT_CHECK } from './model/typed';
 
 import * as uuid from 'uuid';
 
@@ -80,12 +81,8 @@ class Factory {
      * <dt>empty</dt><dd>return a resource instance with empty property values.</dd></dl>
      * @param {boolean} [options.includeOptionalFields] - if <code>options.generate</code>
      * is specified, whether optional fields should be generated.
-     * @param {boolean} [options.deferDateTimeDefaultCheck] - pass true to skip checking
-     * DateTime default values here. Used by the Serializer, which checks only the defaults
-     * that are used for fields missing from the JSON. Defaults to false.
      * @return {Resource} the new instance
      * @throws {TypeNotFoundException} if the type is not registered with the ModelManager
-     * @throws {ValidationException} if a DateTime field has a default value that cannot be parsed
      */
     newResource(ns, type, id?, options?) {
         const method = 'newResource';
@@ -148,7 +145,7 @@ class Factory {
         else {
             newObj = new ValidatedResource(this.modelManager, classDecl, ns, type, id, timestamp, new ResourceValidator());
         }
-        newObj.assignFieldDefaults(!options.deferDateTimeDefaultCheck);
+        newObj.assignFieldDefaults(!options[DEFER_DATETIME_DEFAULT_CHECK]);
         this.initializeNewObject(newObj, classDecl, options);
 
         if (idField) {

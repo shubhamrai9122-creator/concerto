@@ -155,6 +155,41 @@ describe('Typed', () => {
             typed.invalidDate.isValid().should.equal(false);
         });
 
+        it('should reject a date-only DateTime default', () => {
+            modelManager.addCTOModel(`namespace org.acme.defaults@1.0.0
+            concept DefaultAsset {
+                o DateTime dateOnly default="2024-05-01"
+            }`);
+            const classDecl = modelManager.getType('org.acme.defaults@1.0.0.DefaultAsset');
+            const typed = new Typed(modelManager, classDecl, 'org.acme.defaults@1.0.0', 'DefaultAsset');
+            (() => typed.assignFieldDefaults()).should.throw(
+                ValidationException,
+                /Invalid default value '2024-05-01' for DateTime field 'dateOnly'\./
+            );
+        });
+
+        it('should reject an impossible DateTime default', () => {
+            modelManager.addCTOModel(`namespace org.acme.defaults@1.0.0
+            concept DefaultAsset {
+                o DateTime impossible default="2024-02-30T00:00:00Z"
+            }`);
+            const classDecl = modelManager.getType('org.acme.defaults@1.0.0.DefaultAsset');
+            const typed = new Typed(modelManager, classDecl, 'org.acme.defaults@1.0.0', 'DefaultAsset');
+            (() => typed.assignFieldDefaults()).should.throw(
+                ValidationException,
+                /Invalid default value '2024-02-30T00:00:00Z' for DateTime field 'impossible'\./
+            );
+        });
+
+        it('should accept a date-only DateTime default when the check is not strict', () => {
+            modelManager.addCTOModel(`namespace org.acme.defaults@1.0.0
+            concept DefaultAsset {
+                o DateTime dateOnly default="2024-05-01"
+            }`);
+            const classDecl = modelManager.getType('org.acme.defaults@1.0.0.DefaultAsset');
+            (() => Typed.checkDateTimeDefault(classDecl.getProperty('dateOnly'), false)).should.not.throw();
+        });
+
         it('should assign a valid DateTime default', () => {
             modelManager.addCTOModel(`namespace org.acme.defaults@1.0.0
             concept DefaultAsset {

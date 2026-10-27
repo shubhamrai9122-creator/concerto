@@ -15,11 +15,11 @@
 import createDebug from 'debug';
 import { TypedStack, NullUtil as Util } from '@accordproject/concerto-util';
 import Relationship from '../model/relationship';
-import Typed from '../model/typed';
+import Typed, { DEFER_DATETIME_DEFAULT_CHECK } from '../model/typed';
 import ModelUtil from '../modelutil';
 import ValidationException from './validationexception';
 import dayjs from '../dayjs-setup';
-import { isValidDateTime } from '../datetimeutil';
+import { checkStrictDateTime } from '../datetimeutil';
 import type Factory from '../factory';
 import type BaseModelManager from '../basemodelmanager';
 import type Declaration from '../introspect/declaration';
@@ -33,7 +33,7 @@ const debug = createDebug('concerto:JSONPopulator');
 
 // Nested instances are created like the root one in Serializer.fromJSON: their
 // DateTime defaults are checked in visitClassDeclaration, not by the factory.
-const FACTORY_OPTIONS = { deferDateTimeDefaultCheck: true };
+const FACTORY_OPTIONS = { [DEFER_DATETIME_DEFAULT_CHECK]: true };
 
 
 type Stack<T> = {
@@ -197,7 +197,7 @@ class JSONPopulator {
         // factory assigned, so this is where a DateTime default is actually used.
         classDeclaration.getProperties().forEach((property) => {
             if (Util.isNull(jsonObj[property.getName()])) {
-                Typed.checkDateTimeDefault(property as Field);
+                Typed.checkDateTimeDefault(property as Field, this.strictQualifiedDateTimes);
             }
         });
         return resourceObj;
@@ -392,14 +392,11 @@ class JSONPopulator {
             } else if (!this.strictQualifiedDateTimes){
                 result = dayjs.utc(json).utcOffset(this.utcOffset);
             } else if (this.strictQualifiedDateTimes){
-                const match = json.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2}(?:\.\d+)?)(Z|[+-]\d{2}:\d{2})$/);
-                if (match) {
-                    const second = match[6].split('.')[0];
-                    if (isValidDateTime(match[1], match[2], match[3], match[4], match[5], second, match[7])) {
-                        result = dayjs.utc(json);
-                    } else {
-                        throw new ValidationException(`Expected value at path \`${path}\` to be of type \`${field.getType()}\` (${json} is not a valid date-time)`);
-                    }
+                const check = checkStrictDateTime(json);
+                if (check === 'valid') {
+                    result = dayjs.utc(json);
+                } else if (check === 'invalid') {
+                    throw new ValidationException(`Expected value at path \`${path}\` to be of type \`${field.getType()}\` (${json} is not a valid date-time)`);
                 } else {
                     throw new ValidationException(`Expected value at path \`${path}\` to be of type \`${field.getType()}\` with format YYYY-MM-DDTHH:mm:ss[Z]`);
                 }

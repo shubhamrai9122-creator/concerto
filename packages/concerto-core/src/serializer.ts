@@ -17,7 +17,7 @@ import DateTimeUtil from './datetimeutil';
 import Globalize from './globalize';
 import JSONGenerator from './serializer/jsongenerator';
 import JSONPopulator from './serializer/jsonpopulator';
-import Typed from './model/typed';
+import Typed, { DEFER_DATETIME_DEFAULT_CHECK } from './model/typed';
 import ResourceValidator from './serializer/resourcevalidator';
 
 const { utcOffset: defaultUtcOffset } = DateTimeUtil.setCurrentTime();
@@ -164,7 +164,7 @@ class Serializer {
         // create a new instance, using the identifier field name as the ID.
         // DateTime defaults are checked by the JSONPopulator, once it knows
         // which fields the JSON supplies.
-        const factoryOptions = { deferDateTimeDefaultCheck: true };
+        const factoryOptions = { [DEFER_DATETIME_DEFAULT_CHECK]: true };
         let resource;
         if (classDeclaration.isTransaction?.()) {
             resource = this.factory.newTransaction(classDeclaration.getNamespace(),
